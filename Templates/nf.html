@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Not Fixed Complaints</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+  <!-- Hero Section -->
+  <section class="hero-section text-center py-5 bg-primary text-white">
+    <h1>Not Fixed Complaints</h1>
+    <p>Explore complaints that are still unresolved.</p>
+  </section>
+
+  <!-- Success Message -->
+  {% if success_message %}
+    <div class="alert alert-success text-center mt-4" role="alert">
+      {{ success_message }}
+    </div>
+  {% endif %}
+
+  <!-- Search Section -->
+  <section class="container mt-4">
+    <form method="POST" action="/not_fixed">
+      <div class="mb-3">
+        <label for="category_title" class="form-label">Search by Category</label>
+        <select class="form-select" id="category_title" name="category_title" required>
+          <option value="Pollution" {% if selected_category == 'Pollution' %}selected{% endif %}>Pollution</option>
+          <option value="Garbage and Unsanitary Practices" {% if selected_category == 'Garbage and Unsanitary Practices' %}selected{% endif %}>Garbage and Unsanitary Practices</option>
+          <option value="Certificates" {% if selected_category == 'Certificates' %}selected{% endif %}>Certificates</option>
+          <option value="Streetlights" {% if selected_category == 'Streetlights' %}selected{% endif %}>Streetlights</option>
+          <option value="Lakes" {% if selected_category == 'Lakes' %}selected{% endif %}>Lakes</option>
+          <option value="Parks & Recreation" {% if selected_category == 'Parks & Recreation' %}selected{% endif %}>Parks & Recreation</option>
+          <option value="Sewerage Systems" {% if selected_category == 'Sewerage Systems' %}selected{% endif %}>Sewerage Systems</option>
+          <option value="Community Infrastructure and Services" {% if selected_category == 'Community Infrastructure and Services' %}selected{% endif %}>Community Infrastructure and Services</option>
+          <option value="Crime and Safety" {% if selected_category == 'Crime and Safety' %}selected{% endif %}>Crime and Safety</option>
+          <option value="Traffic and Road Safety" {% if selected_category == 'Traffic and Road Safety' %}selected{% endif %}>Traffic and Road Safety</option>
+          <option value="Mobility - Roads, Footpaths and Infrastructure" {% if selected_category == 'Mobility - Roads, Footpaths and Infrastructure' %}selected{% endif %}>Mobility - Roads, Footpaths and Infrastructure</option>
+          <option value="Mobility - Roads, Public transport" {% if selected_category == 'Mobility - Roads, Public transport' %}selected{% endif %}>Mobility - Roads, Public transport</option>
+          <option value="Street lighting" {% if selected_category == 'Street lighting' %}selected{% endif %}>Street lighting</option>
+          <option value="Trees and Saplings" {% if selected_category == 'Trees and Saplings' %}selected{% endif %}>Trees and Saplings</option>
+          <option value="Public Transport - BMTC" {% if selected_category == 'Public Transport - BMTC' %}selected{% endif %}>Public Transport - BMTC</option>
+          <option value="Fire Safety" {% if selected_category == 'Fire Safety' %}selected{% endif %}>Fire Safety</option>
+          <option value="Animal Husbandry" {% if selected_category == 'Animal Husbandry' %}selected{% endif %}>Animal Husbandry</option>
+          <option value="Electricity and Power Supply" {% if selected_category == 'Electricity and Power Supply' %}selected{% endif %}>Electricity and Power Supply</option>
+          <option value="Storm Water Drains" {% if selected_category == 'Storm Water Drains' %}selected{% endif %}>Storm Water Drains</option>
+          <option value="Water Supply and Services" {% if selected_category == 'Water Supply and Services' %}selected{% endif %}>Water Supply and Services</option>
+          <option value="Others" {% if selected_category == 'Others' %}selected{% endif %}>Others</option>
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary">Search</button>
+    </form>
+  </section>
+
+  <!-- Add New Complaint Section -->
+  <section class="container mt-4">
+    <h3>Upload a New Complaint</h3>
+    <form method="POST" action="/not_fixed" enctype="multipart/form-data">
+      <div class="mb-3">
+        <label for="title" class="form-label">Complaint Title</label>
+        <input type="text" class="form-control" id="title" name="title" required>
+      </div>
+      <div class="mb-3">
+        <label for="description" class="form-label">Complaint Description</label>
+        <textarea class="form-control" id="description" name="description" rows="3" required></textarea>
+      </div>
+      <div class="mb-3">
+        <label for="category" class="form-label">Complaint Category</label>
+        <select class="form-select" id="category" name="category" required>
+          <option value="Pollution">Pollution</option>
+          <option value="Garbage and Unsanitary Practices">Garbage and Unsanitary Practices</option>
+          <option value="Certificates">Certificates</option>
+          <option value="Streetlights">Streetlights</option>
+          <option value="Lakes">Lakes</option>
+          <option value="Parks & Recreation">Parks & Recreation</option>
+          <option value="Sewerage Systems">Sewerage Systems</option>
+          <option value="Community Infrastructure and Services">Community Infrastructure and Services</option>
+          <option value="Crime and Safety">Crime and Safety</option>
+          <option value="Traffic and Road Safety">Traffic and Road Safety</option>
+          <option value="Mobility - Roads, Footpaths and Infrastructure">Mobility - Roads, Footpaths and Infrastructure</option>
+          <option value="Mobility - Roads, Public transport">Mobility - Roads, Public transport</option>
+          <option value="Street lighting">Street lighting</option>
+          <option value="Trees and Saplings">Trees and Saplings</option>
+          <option value="Public Transport - BMTC">Public Transport - BMTC</option>
+          <option value="Fire Safety">Fire Safety</option>
+          <option value="Animal Husbandry">Animal Husbandry</option>
+          <option value="Electricity and Power Supply">Electricity and Power Supply</option>
+          <option value="Storm Water Drains">Storm Water Drains</option>
+          <option value="Water Supply and Services">Water Supply and Services</option>
+          <option value="Others">Others</option>
+        </select>
+      </div>
+      <button type="submit" class="btn btn-success">Upload Complaint</button>
+    </form>
+  </section>
+
+  <!-- Complaints Section -->
+  <section class="container mt-4">
+    <h3>Open Complaints for "{{ selected_category }}"</h3>
+    {% if complaints %}
+      {% for complaint in complaints %}
+        <div class="card mb-3">
+          <div class="card-body">
+            <h5 class="card-title">{{ complaint['title'] }}</h5>
+            <p class="card-text">{{ complaint['description'] }}</p>
+            <p><strong>Urgency:</strong> 
+              <span class="badge 
+                {% if complaint['urgency'] == 'Very Urgent' %} bg-danger
+                {% elif complaint['urgency'] == 'Urgent' %} bg-warning
+                {% else %} bg-success
+                {% endif %}">
+                {{ complaint['urgency'] }}
+              </span>
+            </p>
+            <!-- Button to resolve complaint -->
+            <form method="POST" action="/resolve_complaint/{{ complaint['id'] }}">
+              <button type="submit" class="btn btn-success">Mark as Resolved</button>
+            </form>
+          </div>
+        </div>
+      {% endfor %}
+    {% else %}
+      <p>No open complaints found for this category.</p>
+    {% endif %}
+  </section>
+
+  <!-- Bootstrap JS (Optional) -->
+  <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.min.js"></script>
+</body>
+</html>

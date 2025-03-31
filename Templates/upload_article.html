@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Upload Article</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body {
+      background-color: #f9f9f9;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .upload-container {
+      background: white;
+      padding: 40px;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      width: 500px;
+    }
+    .btn-primary {
+      background-color: #1e3a8a;
+      border: none;
+    }
+    .btn-primary:hover {
+      background-color: #335aa7;
+    }
+  </style>
+</head>
+<body>
+  <div class="upload-container">
+    <h2>Upload Article</h2>
+    <form id="articleForm">
+      <div class="mb-3">
+        <label for="category" class="form-label">Predicted Category</label>
+        <input type="text" class="form-control" id="category" readonly>
+      </div>
+      <div class="mb-3">
+        <label for="articleName" class="form-label">Article Name</label>
+        <input type="text" class="form-control" id="articleName" placeholder="Enter article name" required>
+      </div>
+      <div class="mb-3">
+        <label for="articleSummary" class="form-label">Article Summary</label>
+        <textarea class="form-control" id="articleSummary" placeholder="Enter article summary" required></textarea>
+      </div>
+      <div class="mb-3">
+        <label for="articleLink" class="form-label">Article Link</label>
+        <input type="url" class="form-control" id="articleLink" placeholder="Enter article link" required>
+      </div>
+      <button type="button" class="btn btn-secondary w-100 mb-3" id="predictCategory">Predict Category</button>
+      <button type="submit" class="btn btn-primary w-100">Upload</button>
+    </form>
+  </div>
+
+  <script>
+    document.getElementById("predictCategory").addEventListener("click", async function () {
+      const articleName = document.getElementById("articleName").value;
+      const articleSummary = document.getElementById("articleSummary").value;
+
+      if (!articleName || !articleSummary) {
+        alert("Please fill in both the article name and summary.");
+        return;
+      }
+
+      const response = await fetch("http://127.0.0.1:5000/classify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ articleName, articleSummary }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        document.getElementById("category").value = data.category;
+      } else {
+        alert("Failed to predict category. Please try again.");
+      }
+    });
+
+    const request = indexedDB.open("ArticleSpotDB", 4);
+
+    request.onupgradeneeded = function (event) {
+      const db = event.target.result;
+      if (!db.objectStoreNames.contains("articles")) {
+        db.createObjectStore("articles", { keyPath: "id", autoIncrement: true });
+      }
+    };
+
+    request.onsuccess = function () {
+      const db = request.result;
+
+      document.getElementById("articleForm").addEventListener("submit", function (e) {
+        e.preventDefault();
+
+        const articleName = document.getElementById("articleName").value;
+        const articleSummary = document.getElementById("articleSummary").value;
+        const articleLink = document.getElementById("articleLink").value;
+        const category = document.getElementById("category").value;
+
+        if (!category) {
+          alert("Please predict the category before uploading.");
+          return;
+        }
+
+        const transaction = db.transaction("articles", "readwrite");
+        const store = transaction.objectStore("articles");
+
+        const articleData = {
+          category,
+          articleName,
+          articleSummary,
+          articleLink,
+        };
+
+        store.add(articleData).onsuccess = function () {
+          alert("Article uploaded successfully!");
+          document.getElementById("articleForm").reset();
+        };
+      });
+    };
+  </script>
+</body>
+</html>

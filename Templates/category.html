@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Articles</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f9f9f9;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      margin-top: 20px;
+    }
+    .article-card {
+      background: white;
+      padding: 20px;
+      margin-bottom: 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    .review-section {
+      margin-top: 10px;
+    }
+    .review-form textarea {
+      width: 100%;
+      height: 80px;
+      margin-bottom: 10px;
+    }
+    .sentiment {
+      font-weight: bold;
+      margin-left: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2 id="categoryTitle"></h2>
+    <div id="articlesContainer">
+      <!-- Articles will be dynamically loaded here -->
+    </div>
+  </div>
+
+  <script>
+    // Parse the category from the URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const category = (urlParams.get("category") || "").trim().toLowerCase();
+
+    // Set the category title
+    document.getElementById("categoryTitle").innerText = `Articles in ${category.charAt(0).toUpperCase() + category.slice(1)}`;
+
+    // Open IndexedDB
+    const request = indexedDB.open("ArticleSpotDB", 4);
+
+    request.onsuccess = function () {
+      const db = request.result;
+
+      const transaction = db.transaction("articles", "readonly");
+      const store = transaction.objectStore("articles");
+
+      // Fetch all articles
+      const getAllRequest = store.getAll();
+
+      getAllRequest.onsuccess = function () {
+        const articles = getAllRequest.result;
+
+        // Debugging logs
+        console.log("All articles from IndexedDB:", articles);
+        console.log("Category from URL:", category);
+
+        // Filter articles by the category
+        const filteredArticles = articles.filter(article => article.category.trim().toLowerCase() === category);
+
+        // Log filtered articles
+        console.log("Filtered articles:", filteredArticles);
+
+        const container = document.getElementById("articlesContainer");
+
+        // If no articles match, display a message
+        if (filteredArticles.length === 0) {
+          container.innerHTML = "<p>No articles found for this category.</p>";
+          return;
+        }
+
+        // Render filtered articles
+        filteredArticles.forEach(article => {
+          const articleCard = document.createElement("div");
+          articleCard.className = "article-card";
+          articleCard.setAttribute("data-article-id", article.id);
+          articleCard.innerHTML = `
+            <h4 id="title-${article.id}">${article.articleName}</h4>
+            <p class="article-summary" id="summary-${article.id}">${article.articleSummary}</p>
+            <a href="${article.articleLink}" target="_blank" class="btn btn-primary">Read More</a>
+            <button class="btn btn-secondary toggle-language" data-article-id="${article.id}">Switch to Kannada</button>
+            <div class="review-section">
+              <h5>Reviews</h5>
+              <ul id="reviews-${article.id}"></ul>
+              <form class="review-form" data-article-id="${article.id}">
+                <textarea placeholder="Write a review..." required></textarea>
+                <button type="submit" class="btn btn-secondary btn-sm">Submit Review</button>
+              </form>
+            </div>
+          `;
+          container.appendChild(articleCard);
+          loadReviews(db, article.id);
+        });
+
+        // Add review form handlers
+        document.querySelectorAll(".review-form").forEach(form => {
+          form.addEventListener("submit", async function (e) {
+            e.preventDefault();
+            const articleId = parseInt(this.getAttribute("data-article-id"));
+            const reviewText = this.querySelector("textarea").value;
+
+            // Perform sentiment analysis
+            const sentiment = analyzeSentiment(reviewText);
+
+            // Save review to IndexedDB
+            const reviewTransaction = db.transaction("reviews", "readwrite");
+            const reviewStore = reviewTransaction.objectStore("reviews");
+            const reviewData = { articleId, reviewText, sentiment };
+
+            reviewStore.add(reviewData).onsuccess = function () {
+              const reviewList = document.getElementById(`reviews-${articleId}`);
+              const reviewItem = document.createElement("li");
+              reviewItem.innerHTML = `
+                ${reviewText} <span class="sentiment">(${sentiment})</span>
+              `;
+              reviewList.appendChild(reviewItem);
+              e.target.reset();
+            };
+          });
+        });
+
+        // Handle language toggles
+        document.querySelectorAll(".toggle-language").forEach(button => {
+          button.addEventListener("click", function () {
+            const articleId = parseInt(this.getAttribute("data-article-id"));
+            const article = filteredArticles.find(a => a.id === articleId);
+            const titleElement = document.getElementById(`title-${articleId}`);
+            const summaryElement = document.getElementById(`summary-${articleId}`);
+            const reviewList = document.getElementById(`reviews-${articleId}`);
+
+            // Toggle between languages
+            const targetLang = this.innerText.includes("Kannada") ? "kn" : "en";
+            translateText(article.articleName, targetLang, titleElement);
+            translateText(article.articleSummary, targetLang, summaryElement);
+            translateReviews(db, articleId, reviewList, targetLang);
+
+            // Update button text
+            this.innerText = targetLang === "kn" ? "Switch to English" : "Switch to Kannada";
+          });
+        });
+      };
+    };
+
+    // Load reviews
+    function loadReviews(db, articleId) {
+      const transaction = db.transaction("reviews", "readonly");
+      const store = transaction.objectStore("reviews");
+      const getAllRequest = store.getAll();
+
+      getAllRequest.onsuccess = function () {
+        const reviews = getAllRequest.result.filter(review => parseInt(review.articleId) === articleId);
+        const reviewList = document.getElementById(`reviews-${articleId}`);
+        reviews.forEach(review => {
+          const reviewItem = document.createElement("li");
+          reviewItem.innerHTML = `
+            ${review.reviewText} <span class="sentiment">(${review.sentiment})</span>
+          `;
+          reviewList.appendChild(reviewItem);
+        });
+      };
+    }
+
+    // Translate text
+    function translateText(text, targetLang, element) {
+      fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLang}&dt=t&q=${encodeURIComponent(text)}`)
+        .then(response => response.json())
+        .then(data => {
+          element.innerText = data[0][0][0] || text; // Fallback to original text
+        })
+        .catch(error => {
+          console.error("Translation error:", error);
+          element.innerText = text; // Fallback to original text
+        });
+    }
+
+    // Translate reviews
+    function translateReviews(db, articleId, reviewList, targetLang) {
+      const transaction = db.transaction("reviews", "readonly");
+      const store = transaction.objectStore("reviews");
+      const getAllRequest = store.getAll();
+
+      getAllRequest.onsuccess = function () {
+        const reviews = getAllRequest.result.filter(review => parseInt(review.articleId) === articleId);
+        reviewList.innerHTML = "";
+        reviews.forEach(review => {
+          translateText(review.reviewText, targetLang, reviewList.appendChild(document.createElement("li")));
+        });
+      };
+    }
+
+    // Analyze sentiment
+    function analyzeSentiment(text) {
+      const positiveWords = ["good", "excellent", "awesome", "amazing", "happy", "love"];
+      const negativeWords = ["bad", "poor", "terrible", "awful", "sad", "hate"];
+
+      const lowerText = text.toLowerCase();
+      let score = 0;
+
+      positiveWords.forEach(word => {
+        if (lowerText.includes(word)) score++;
+      });
+
+      negativeWords.forEach(word => {
+        if (lowerText.includes(word)) score--;
+      });
+
+      return score > 0 ? "Positive" : score < 0 ? "Negative" : "Neutral";
+    }
+  </script>
+</body>
+</html>
